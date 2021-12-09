@@ -1,5 +1,6 @@
 package com.jsd.assignment3.controller;
 
+import com.jsd.assignment3.model.entity.Document;
 import com.jsd.assignment3.model.service.DocumentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,6 +12,11 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /*
     uploading
@@ -30,29 +36,76 @@ public class DocumentController {
 
     @PostMapping(value = "/upload")
     public String uploadFileHandler(@RequestParam("name")String fileName ,@RequestParam("file")MultipartFile file){
-        System.out.println(fileName);
+        System.out.println("initial file name : "+ fileName);
+        File dir = null;
         if (!file.isEmpty()) {
             try {
                 byte[] bytes = file.getBytes();
 
                 // Creating the directory to store file
                 String rootPath = System.getProperty("user.home");
-                File dir = new File(rootPath + File.separator + "uploadFiles");
+                 dir = new File(rootPath + File.separator + "uploadFiles");
                 if (!dir.exists()) {
                     dir.mkdirs();
                 }
 
-                // Create the file on server
-                File serverFile = new File(dir.getAbsolutePath() + File.separator + fileName);
+
+                File serverFile = null;
+
+                // get older version name
+                List<Document> oldVersion = documentService.findByName(fileName);
+                if(!oldVersion.isEmpty()){
+
+                    String[] seperateFileName = fileName.split("\\.");
+                    int version = oldVersion.size();
+                    String newFileNameWithVersion = seperateFileName[0]+"("+version+")"+"."+seperateFileName[1];
+                    // Create the file on server
+
+                    serverFile = new File(dir.getAbsolutePath() + File.separator + newFileNameWithVersion);
+
+                }
+                else{
+                    // Create the file on server
+                    serverFile = new File(dir.getAbsolutePath() + File.separator + fileName);
+
+                }
+
                 BufferedOutputStream stream = new BufferedOutputStream(new FileOutputStream(serverFile));
                 stream.write(bytes);
                 stream.close();
 
                 System.out.println("Server File Location=" + serverFile.getAbsolutePath());
 
-                return null;
+                // save to database
+
+                Document document = new Document();
+
+                document.setName(fileName);
+
+                document.setPath(serverFile.getAbsolutePath());
+
+                document.setFileSize(bytes.length);
+
+
+                document.setMime(fileName.split("\\.")[1]);
+
+                if(!oldVersion.isEmpty()){
+                    document.setVersion(oldVersion.size()+1);
+
+                }else{
+
+                    document.setVersion(1);
+                }
+                document.setStatus(null);
+                document.setCreatedDateTime(LocalDateTime.now());
+                document.setVersionId(null);
+
+                documentService.save(document);
+
+
+                return "finish upload !" ;
             } catch (Exception e) {
-                return null;
+                return e.getMessage();
             }
         }
         return fileName;
