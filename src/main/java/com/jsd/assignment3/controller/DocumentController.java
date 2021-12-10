@@ -3,18 +3,19 @@ package com.jsd.assignment3.controller;
 import com.jsd.assignment3.model.entity.Document;
 import com.jsd.assignment3.model.service.DocumentService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -57,7 +58,7 @@ public class DocumentController {
                 if(!oldVersion.isEmpty()){
 
                     String[] seperateFileName = fileName.split("\\.");
-                    int version = oldVersion.size();
+                    int version = oldVersion.get(oldVersion.size()-1).getVersion();
                     String newFileNameWithVersion = seperateFileName[0]+"("+version+")"+"."+seperateFileName[1];
                     // Create the file on server
 
@@ -90,7 +91,8 @@ public class DocumentController {
                 document.setMime(fileName.split("\\.")[1]);
 
                 if(!oldVersion.isEmpty()){
-                    document.setVersion(oldVersion.size()+1);
+                    //set version = last version + 1
+                    document.setVersion(oldVersion.get(oldVersion.size()-1).getVersion()+1);
 
                 }else{
 
@@ -111,5 +113,59 @@ public class DocumentController {
         return fileName;
     }
 
+
+    @GetMapping(value = "/get-all")
+    public List<Document> getAllDocuments(){
+
+
+        return documentService.getDocuments();
+    }
+
+    @GetMapping(value="/download")
+    public void downloadDocument(@RequestParam(name = "id") Long id, HttpServletResponse response) throws Exception {
+        Optional<Document> downloadDocument = documentService.findById(id);
+        if(!downloadDocument.isPresent()){
+            throw new Exception("Could not find file with id : "+id);
+
+        }
+
+        Document result =downloadDocument.get();
+        response.setContentType("application/octet-stream");
+        String headerKey = "Content-Disposition";
+        String headerValue = "attachment;filename="+result.getName();
+        response.setHeader(headerKey,headerValue);
+        ServletOutputStream servletOutputStream = response.getOutputStream();
+        // get the content from server file
+        // get the file
+        File serverFile = documentService.getDocumentByPath(result.getPath());
+        byte[] fileContent =  Files.readAllBytes(serverFile.toPath());
+        servletOutputStream.write(fileContent);
+        // update in database
+        result.setNumberOfDownload(result.getNumberOfDownload()+1);
+        documentService.save(result);
+        servletOutputStream.close();
+
+
+    }
+
+
+    @DeleteMapping("/delete")
+    public void deleteDocument(@RequestParam(name="id") Long id) throws Exception {
+        Optional<Document> deleteDocument = documentService.findById(id);
+        if(!deleteDocument.isPresent()){
+            throw new Exception("Not found delete document with id : "+id);
+
+        }
+        Document document = deleteDocument.get();
+        File deleteServerFile= new File(document.getPath());
+        boolean result = deleteServerFile.delete();
+        if(!result){
+            throw new Exception("Delete file failed ! ");
+        }
+        documentService.delete(document);
+
+
+
+    }
 
 }
