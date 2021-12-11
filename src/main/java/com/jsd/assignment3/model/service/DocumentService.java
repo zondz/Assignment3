@@ -3,6 +3,8 @@ package com.jsd.assignment3.model.service;
 import com.jsd.assignment3.model.entity.Document;
 import com.jsd.assignment3.model.repository.DocumentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -53,6 +55,18 @@ public class DocumentService {
     public void delete(Document document) {
 
         documentRepository.delete(document);
+
+    }
+
+    public List<Document> getAndPageDocumentsByMaxFileSize(float fileSize, int numberOfRecordPerPage, int pageNumber) {
+        Pageable page = PageRequest.of(pageNumber,numberOfRecordPerPage);
+
+        List<Document> result = documentRepository.findByFileSizeLessThanEqual(fileSize,page);
+
+        return result;
+
+
+
 
     }
 }

@@ -85,7 +85,7 @@ public class DocumentController {
 
                 document.setPath(serverFile.getAbsolutePath());
 
-                document.setFileSize(bytes.length);
+                document.setFileSize(bytes.length/1024);
 
 
                 document.setMime(fileName.split("\\.")[1]);
@@ -165,6 +165,14 @@ public class DocumentController {
         documentService.delete(document);
 
 
+
+    }
+
+
+    @GetMapping(value = "/get-and-paginate")
+    public List<Document> getAndPageDocumentsByMaxFileSize(@RequestParam(name="fileSize") float fileSize,@RequestParam(name="numberOfRecordPerPage") int numberOfRecordPerPage,@RequestParam(name = "pageNumber") int pageNumber){
+
+        return documentService.getAndPageDocumentsByMaxFileSize(fileSize,numberOfRecordPerPage,pageNumber);
 
     }
 
