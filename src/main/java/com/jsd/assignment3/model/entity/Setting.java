@@ -56,4 +56,15 @@ public class Setting {
     public void setLastUpdatedTime(LocalDateTime lastUpdatedTime) {
         this.lastUpdatedTime = lastUpdatedTime;
     }
+
+    @Override
+    public String toString() {
+        return "Setting{" +
+                "id=" + id +
+                ", maxFileSize=" + maxFileSize +
+                ", itemPerPage=" + itemPerPage +
+                ", mimeTypeAllowed='" + mimeTypeAllowed + '\'' +
+                ", lastUpdatedTime=" + lastUpdatedTime +
+                '}';
+    }
 }

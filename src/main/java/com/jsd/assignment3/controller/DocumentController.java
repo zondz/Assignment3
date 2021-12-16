@@ -1,7 +1,10 @@
 package com.jsd.assignment3.controller;
 
 import com.jsd.assignment3.model.entity.Document;
+import com.jsd.assignment3.model.entity.Setting;
 import com.jsd.assignment3.model.service.DocumentService;
+import com.jsd.assignment3.model.service.SettingService;
+import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -11,6 +14,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -25,27 +29,46 @@ import java.util.regex.Pattern;
 
  */
 @RestController
-@RequestMapping(path="document")
+@RequestMapping(path = "document")
 public class DocumentController {
 
     @Autowired
     private DocumentService documentService;
 
+    @Autowired
+    private SettingService settingService;
+
     public DocumentController(DocumentService documentService) {
         this.documentService = documentService;
     }
 
+    // b1 : backend nhận file từ FE
+    // b2 : backend lưu file vào ổ D , lấy path lưu vào trường path trong database
+    // b3 : lấy đường dẫn file từ ổ D : ví dụ : D:\\...abc.png
     @PostMapping(value = "/upload")
-    public String uploadFileHandler(@RequestParam("name")String fileName ,@RequestParam("file")MultipartFile file){
-        System.out.println("initial file name : "+ fileName);
+    public String uploadFileHandler(@RequestParam("file") MultipartFile file) throws Exception {
+        System.out.println("in here");
+
+
+        if (!validateFile(file)) {
+
+            return "Invalid file contraints";
+        }
+        // get file name : abc.png
+        String fileName = file.getOriginalFilename();
+
+        // png
+        String fileNameExtension = FilenameUtils.getExtension(file.getOriginalFilename());
+
         File dir = null;
         if (!file.isEmpty()) {
             try {
                 byte[] bytes = file.getBytes();
 
                 // Creating the directory to store file
+
                 String rootPath = System.getProperty("user.home");
-                 dir = new File(rootPath + File.separator + "uploadFiles");
+                dir = new File(rootPath + File.separator + "uploadFiles");
                 if (!dir.exists()) {
                     dir.mkdirs();
                 }
@@ -55,17 +78,15 @@ public class DocumentController {
 
                 // get older version name
                 List<Document> oldVersion = documentService.findByName(fileName);
-                if(!oldVersion.isEmpty()){
+                if (!oldVersion.isEmpty()) {
 
-                    String[] seperateFileName = fileName.split("\\.");
-                    int version = oldVersion.get(oldVersion.size()-1).getVersion();
-                    String newFileNameWithVersion = seperateFileName[0]+"("+version+")"+"."+seperateFileName[1];
+                    int version = oldVersion.get(oldVersion.size() - 1).getVersion();
+                    String newFileNameWithVersion = FilenameUtils.removeExtension(fileName) + "(" + version + ")" + "." + FilenameUtils.getExtension(file.getOriginalFilename());
                     // Create the file on server
 
                     serverFile = new File(dir.getAbsolutePath() + File.separator + newFileNameWithVersion);
 
-                }
-                else{
+                } else {
                     // Create the file on server
                     serverFile = new File(dir.getAbsolutePath() + File.separator + fileName);
 
@@ -85,27 +106,61 @@ public class DocumentController {
 
                 document.setPath(serverFile.getAbsolutePath());
 
-                document.setFileSize(bytes.length/1024);
+                document.setFileSize(bytes.length / 1024);
 
 
-                document.setMime(fileName.split("\\.")[1]);
+                document.setMime(fileNameExtension);
+                //  document.setMime(fileName.split("\\.")[1]);
+                String versionIds = null;
+                if (!oldVersion.isEmpty()) {
+                    // 1,2,3,4,5
+                    versionIds = oldVersion.get(0).getVersionId();
+                    // split
 
-                if(!oldVersion.isEmpty()){
-                    //set version = last version + 1
-                    document.setVersion(oldVersion.get(oldVersion.size()-1).getVersion()+1);
+                    // if there is only the first version
+                    // 1
+                    if (versionIds.equals("1")) {
+                        document.setVersion(2);
+                        // wrong here // not update old version and new version
+                        versionIds += "," + 2;
+                        document.setVersionId(versionIds);
+                    }
+                    // if there are two more version ids
+                    // 1,2,3,4,5
+                    else {
+                        String[] versionIdsList = versionIds.split("\\,");
+                        // System.out.println(versionIdsList);
 
-                }else{
+                        // length - 1 = highest version , highest version + 1 = new version
+
+                        String lastVersionId = versionIdsList[versionIdsList.length - 1];
+                        int newVersionId = Integer.parseInt(lastVersionId) + 1;
+                        document.setVersion(newVersionId);
+                        versionIds += "," + document.getVersion();
+                        document.setVersionId(versionIds);
+                    }
+
+                    // save new record and update all list --
+                } else {
 
                     document.setVersion(1);
+                    document.setVersionId("1");
                 }
-                document.setStatus(null);
+                document.setStatus("OPEN");
                 document.setCreatedDateTime(LocalDateTime.now());
-                document.setVersionId(null);
+                // document.setVersionId(null);
+                if (!oldVersion.isEmpty()) {
+                    for (Document d : oldVersion) {
+                        d.setVersionId(versionIds);
 
+                    }
+
+                    documentService.saveAll(oldVersion);
+                }
                 documentService.save(document);
 
 
-                return "finish upload !" ;
+                return "finish upload !";
             } catch (Exception e) {
                 return e.getMessage();
             }
@@ -113,35 +168,61 @@ public class DocumentController {
         return fileName;
     }
 
+    private boolean validateFile(MultipartFile file) throws IOException {
+
+        Setting setting = settingService.findRecord();
+
+        // no condition
+        if (setting == null) {
+            // System.out.println("record not exist");
+            return true;
+        }
+
+        boolean result = true;
+
+        if (!setting.getMimeTypeAllowed().equalsIgnoreCase(FilenameUtils.getExtension(file.getOriginalFilename()))) {
+            result = false;
+
+        }
+        // check file size
+        if (file.getBytes().length / 1024 > setting.getMaxFileSize()) {
+            result = false;
+        }
+
+
+        return result;
+
+    }
+
 
     @GetMapping(value = "/get-all")
-    public List<Document> getAllDocuments(){
+    public List<Document> getAllDocuments() {
 
 
         return documentService.getDocuments();
     }
 
-    @GetMapping(value="/download")
+    @GetMapping(value = "/download")
     public void downloadDocument(@RequestParam(name = "id") Long id, HttpServletResponse response) throws Exception {
         Optional<Document> downloadDocument = documentService.findById(id);
-        if(!downloadDocument.isPresent()){
-            throw new Exception("Could not find file with id : "+id);
+        if (!downloadDocument.isPresent()) {
+            throw new Exception("Could not find file with id : " + id);
 
         }
 
-        Document result =downloadDocument.get();
+        Document result = downloadDocument.get();
         response.setContentType("application/octet-stream");
         String headerKey = "Content-Disposition";
-        String headerValue = "attachment;filename="+result.getName();
-        response.setHeader(headerKey,headerValue);
+        String headerValue = "attachment;filename=" + result.getName();
+        response.setHeader(headerKey, headerValue);
         ServletOutputStream servletOutputStream = response.getOutputStream();
         // get the content from server file
         // get the file
         File serverFile = documentService.getDocumentByPath(result.getPath());
-        byte[] fileContent =  Files.readAllBytes(serverFile.toPath());
+        byte[] fileContent = Files.readAllBytes(serverFile.toPath());
         servletOutputStream.write(fileContent);
         // update in database
-        result.setNumberOfDownload(result.getNumberOfDownload()+1);
+        result.setNumberOfDownload(result.getNumberOfDownload() + 1);
         documentService.save(result);
         servletOutputStream.close();
 
@@ -150,29 +231,41 @@ public class DocumentController {
 
 
     @DeleteMapping("/delete")
-    public void deleteDocument(@RequestParam(name="id") Long id) throws Exception {
+    public void deleteDocument(@RequestParam(name = "id") Long id) throws Exception {
         Optional<Document> deleteDocument = documentService.findById(id);
-        if(!deleteDocument.isPresent()){
-            throw new Exception("Not found delete document with id : "+id);
+        if (!deleteDocument.isPresent()) {
+            throw new Exception("Not found delete document with id : " + id);
 
         }
         Document document = deleteDocument.get();
-        File deleteServerFile= new File(document.getPath());
-        boolean result = deleteServerFile.delete();
-        if(!result){
-            throw new Exception("Delete file failed ! ");
-        }
-        documentService.delete(document);
+        File deleteServerFile = new File(document.getPath());
+        // boolean result = deleteServerFile.delete();
+//        if(!result){
+//            throw new Exception("Delete file failed ! ");
+//        }
 
+        document.setStatus("DELETED");
+        documentService.save(document);
 
 
     }
 
 
     @GetMapping(value = "/get-and-paginate")
-    public List<Document> getAndPageDocumentsByMaxFileSize(@RequestParam(name="fileSize") float fileSize,@RequestParam(name="numberOfRecordPerPage") int numberOfRecordPerPage,@RequestParam(name = "pageNumber") int pageNumber){
+    public List<Document> getAndPageDocumentsByMaxFileSize(@RequestParam(name = "pageNumber") int pageNumber) {
+        // if exist setting -> applied setting properties
+        // else {
+        //  return all records
+        // }
+        Setting setting = settingService.findRecord();
+        if(setting==null){
 
-        return documentService.getAndPageDocumentsByMaxFileSize(fileSize,numberOfRecordPerPage,pageNumber);
+            return documentService.getDocuments();
+        }
+        else{
+            return documentService.getAndPageDocumentsByMaxFileSize(setting.getMaxFileSize(), setting.getItemPerPage(), pageNumber);
+        }
+
 
     }
 

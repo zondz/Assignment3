@@ -19,6 +19,7 @@ public class Document {
     @Column(name = "download_number")
     private int numberOfDownload;
     private int version;
+
     private String status;
     @Column(name = "create_date_time")
     private LocalDateTime createdDateTime;

@@ -69,4 +69,10 @@ public class DocumentService {
 
 
     }
+
+    public void saveAll(List<Document> oldVersion) {
+
+        documentRepository.saveAll(oldVersion);
+
+    }
 }
