@@ -58,10 +58,10 @@ public class DocumentService {
 
     }
 
-    public List<Document> getAndPageDocumentsByMaxFileSize(float fileSize, int numberOfRecordPerPage, int pageNumber) {
+    public List<Document> getAndPageOpenDocumentsByMaxFileSize(float fileSize, int numberOfRecordPerPage, int pageNumber) {
         Pageable page = PageRequest.of(pageNumber,numberOfRecordPerPage);
 
-        List<Document> result = documentRepository.findByFileSizeLessThanEqual(fileSize,page);
+        List<Document> result = documentRepository.findByFileSizeLessThanEqualAndStatusNot(fileSize,"DELETED",page);
 
         return result;
 
@@ -73,6 +73,12 @@ public class DocumentService {
     public void saveAll(List<Document> oldVersion) {
 
         documentRepository.saveAll(oldVersion);
+
+    }
+
+    public List<Document> getAllOpenDocuments() {
+
+        return documentRepository.findByStatusNot("DELETED");
 
     }
 }

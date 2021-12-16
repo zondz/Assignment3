@@ -255,15 +255,16 @@ public class DocumentController {
     public List<Document> getAndPageDocumentsByMaxFileSize(@RequestParam(name = "pageNumber") int pageNumber) {
         // if exist setting -> applied setting properties
         // else {
-        //  return all records
+        //  return all records with status != DELETED
         // }
         Setting setting = settingService.findRecord();
         if(setting==null){
+            // get document but still check condition
 
-            return documentService.getDocuments();
+            return documentService.getAllOpenDocuments();
         }
         else{
-            return documentService.getAndPageDocumentsByMaxFileSize(setting.getMaxFileSize(), setting.getItemPerPage(), pageNumber);
+            return documentService.getAndPageOpenDocumentsByMaxFileSize(setting.getMaxFileSize(), setting.getItemPerPage(), pageNumber);
         }
 
 

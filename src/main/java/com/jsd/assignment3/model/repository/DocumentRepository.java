@@ -11,7 +11,8 @@ import java.util.List;
 public interface DocumentRepository extends JpaRepository<Document,Long> {
     List<Document> findDocumentsByNameEquals(String name);
 
-    List<Document> findByFileSizeLessThanEqual(float fileSize, Pageable pageable);
+    List<Document> findByFileSizeLessThanEqualAndStatusNot(float fileSize,String status, Pageable pageable);
 
+    List<Document> findByStatusNot(String status);
 
 }
