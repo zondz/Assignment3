@@ -199,7 +199,7 @@ public class DocumentController {
     public List<Document> getAllDocuments() {
 
 
-        return documentService.getDocuments();
+         return documentService.getAllOpenDocuments();
     }
 
     @GetMapping(value = "/download")
