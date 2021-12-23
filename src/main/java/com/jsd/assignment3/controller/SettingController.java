@@ -27,18 +27,21 @@ public class SettingController {
 
        record.setItemPerPage(setting.getItemPerPage());
        record.setMaxFileSize(setting.getMaxFileSize());
-       record.setMimeTypeAllowed(setting.getMimeTypeAllowed());
+       record.setMimeTypeAllowed(setting.getMimeTypeAllowed());// png
        record.setLastUpdatedTime(LocalDateTime.now());
 
        settingService.save(record);
 
 
 
-
-
-
-
-
     }
+
+
+    @GetMapping("/get")
+    public Setting getSetting(){
+        Setting record  = settingService.findRecord();
+            return record;
+    }
+
 
 }
