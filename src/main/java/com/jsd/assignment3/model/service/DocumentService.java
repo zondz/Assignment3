@@ -1,10 +1,13 @@
 package com.jsd.assignment3.model.service;
 
 import com.jsd.assignment3.model.entity.Document;
+import com.jsd.assignment3.model.entity.Setting;
 import com.jsd.assignment3.model.repository.DocumentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -58,15 +61,15 @@ public class DocumentService {
 
     }
 
-    public List<Document> getAndPageOpenDocumentsByMaxFileSize(float fileSize, int numberOfRecordPerPage, int pageNumber) {
-        Pageable page = PageRequest.of(pageNumber,numberOfRecordPerPage);
+    public Page<Document> getAndPageOpenDocumentsByMaxFileSize(Setting setting, int pageNumber) {
+//        Pageable page = PageRequest.of(pageNumber,numberOfRecordPerPage);
+//
+        Pageable page = PageRequest.of(pageNumber,setting.getItemPerPage(),
+                Sort.by("name").ascending().and(Sort.by("version").ascending()));
+        Page<Document> result = documentRepository.findByStatusContaining("OPEN",page);
 
-        List<Document> result = documentRepository.findByFileSizeLessThanEqualAndStatusNot(fileSize,"DELETED",page);
-
-        return result;
-
-
-
+    System.out.println(result);
+    return result;
 
     }
 

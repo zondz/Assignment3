@@ -6,6 +6,7 @@ import com.jsd.assignment3.model.service.DocumentService;
 import com.jsd.assignment3.model.service.SettingService;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -28,6 +29,8 @@ import java.util.regex.Pattern;
     downloading file
 
  */
+@CrossOrigin(origins ="http://localhost:3000/")
+
 @RestController
 @RequestMapping(path = "document")
 public class DocumentController {
@@ -252,20 +255,24 @@ public class DocumentController {
 
 
     @GetMapping(value = "/get-and-paginate")
-    public List<Document> getAndPageDocumentsByMaxFileSize(@RequestParam(name = "pageNumber") int pageNumber) {
+    public Page<Document> getAndPageDocumentsByMaxFileSize(@RequestParam(name = "pageNumber") int pageNumber ,HttpServletResponse response) {
         // if exist setting -> applied setting properties
         // else {
         //  return all records with status != DELETED
         // }
         Setting setting = settingService.findRecord();
-        if(setting==null){
-            // get document but still check condition
+//        if(setting==null){
+//            // get document but still check condition
+//
+//            return documentService.getAllOpenDocuments();
+//        }
+//        else{
 
-            return documentService.getAllOpenDocuments();
-        }
-        else{
-            return documentService.getAndPageOpenDocumentsByMaxFileSize(setting.getMaxFileSize(), setting.getItemPerPage(), pageNumber);
-        }
+        response.addHeader("Access-Control-Allow-Origin", "*");
+
+        System.out.println("Error check 1 " +documentService.getAndPageOpenDocumentsByMaxFileSize(setting, pageNumber));
+            return documentService.getAndPageOpenDocumentsByMaxFileSize(setting, pageNumber);
+       // }
 
 
     }
