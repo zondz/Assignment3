@@ -50,7 +50,7 @@ public class DocumentController {
     // b3 : lấy đường dẫn file từ ổ D : ví dụ : D:\\...abc.png
     @PostMapping(value = "/upload")
     public String uploadFileHandler(@RequestParam("file") MultipartFile file) throws Exception {
-        System.out.println("in here");
+
 
 
         if (!validateFile(file)) {
@@ -174,6 +174,10 @@ public class DocumentController {
     private boolean validateFile(MultipartFile file) throws IOException {
 
         Setting setting = settingService.findRecord();
+        // "png,jpeg"
+        // png
+        String[] allowedTypes = setting.getMimeTypeAllowed().split("\\,");
+        System.out.println(allowedTypes);
 
         // no condition
         if (setting == null) {
@@ -182,8 +186,15 @@ public class DocumentController {
         }
 
         boolean result = true;
+        String fileNameExtension = FilenameUtils.getExtension(file.getOriginalFilename());
+        boolean validType = false;
+        for(int i = 0 ; i< allowedTypes.length;i++){
+            if(allowedTypes[i].equalsIgnoreCase(fileNameExtension)){
+                validType = true;
+            }
+        }
 
-        if (!setting.getMimeTypeAllowed().equalsIgnoreCase(FilenameUtils.getExtension(file.getOriginalFilename()))) {
+        if (!validType) {
             result = false;
 
         }
@@ -214,6 +225,7 @@ public class DocumentController {
         }
 
         Document result = downloadDocument.get();
+        System.out.println("BEFORE DOWNLOAD "+result.getNumberOfDownload());
         response.setContentType("application/octet-stream");
         String headerKey = "Content-Disposition";
         String headerValue = "attachment;filename=" + result.getName();
@@ -226,6 +238,8 @@ public class DocumentController {
         servletOutputStream.write(fileContent);
         // update in database
         result.setNumberOfDownload(result.getNumberOfDownload() + 1);
+        System.out.println("AFTER DOWNLOAD "+result.getNumberOfDownload());
+
         documentService.save(result);
         servletOutputStream.close();
 
@@ -235,6 +249,7 @@ public class DocumentController {
 
     @DeleteMapping("/delete")
     public void deleteDocument(@RequestParam(name = "id") Long id) throws Exception {
+
         Optional<Document> deleteDocument = documentService.findById(id);
         if (!deleteDocument.isPresent()) {
             throw new Exception("Not found delete document with id : " + id);
